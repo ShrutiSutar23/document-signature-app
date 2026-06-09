@@ -1,0 +1,75 @@
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from sqlalchemy.orm import Session
+from database import get_db
+from models.document import Document
+from schemas.document import DocumentResponse
+from middleware.auth_middleware import get_current_user
+from models.user import User
+import os
+import uuid
+import aiofiles
+
+router = APIRouter(prefix="/api/docs", tags=["Documents"])
+
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+@router.post("/upload", response_model=DocumentResponse)
+async def upload_document(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Validate file type
+    if not file.filename.endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+
+    # Generate unique filename
+    unique_filename = f"{uuid.uuid4()}_{file.filename}"
+    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+
+    # Save file to disk
+    async with aiofiles.open(file_path, 'wb') as f:
+        content = await file.read()
+        await f.write(content)
+
+    # Save metadata to database
+    document = Document(
+        user_id=current_user.id,
+        filename=unique_filename,
+        original_name=file.filename,
+        file_path=file_path,
+        file_size=len(content),
+        status="pending"
+    )
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+
+    return document
+
+@router.get("", response_model=list[DocumentResponse])
+def get_documents(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    documents = db.query(Document).filter(
+        Document.user_id == current_user.id
+    ).all()
+    return documents
+
+@router.get("/{doc_id}", response_model=DocumentResponse)
+def get_document(
+    doc_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    document = db.query(Document).filter(
+        Document.id == doc_id,
+        Document.user_id == current_user.id
+    ).first()
+
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return document
