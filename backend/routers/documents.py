@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from database import get_db
 from models.document import Document
@@ -20,20 +21,16 @@ async def upload_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # Validate file type
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
 
-    # Generate unique filename
     unique_filename = f"{uuid.uuid4()}_{file.filename}"
     file_path = os.path.join(UPLOAD_DIR, unique_filename)
 
-    # Save file to disk
     async with aiofiles.open(file_path, 'wb') as f:
         content = await file.read()
         await f.write(content)
 
-    # Save metadata to database
     document = Document(
         user_id=current_user.id,
         filename=unique_filename,
@@ -45,7 +42,6 @@ async def upload_document(
     db.add(document)
     db.commit()
     db.refresh(document)
-
     return document
 
 @router.get("", response_model=list[DocumentResponse])
@@ -57,6 +53,29 @@ def get_documents(
         Document.user_id == current_user.id
     ).all()
     return documents
+
+@router.get("/file/{doc_id}")
+def get_document_file(
+    doc_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    document = db.query(Document).filter(
+        Document.id == doc_id,
+        Document.user_id == current_user.id
+    ).first()
+
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if not os.path.exists(document.file_path):
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    return FileResponse(
+        document.file_path,
+        media_type="application/pdf",
+        filename=document.original_name
+    )
 
 @router.get("/{doc_id}", response_model=DocumentResponse)
 def get_document(
