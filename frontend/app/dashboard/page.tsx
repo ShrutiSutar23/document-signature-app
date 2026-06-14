@@ -117,8 +117,14 @@ export default function DashboardPage() {
                       <span className={`px-2 py-1 rounded text-sm font-medium ${getStatusColor(doc.status)}`}>{doc.status}</span>
                     </td>
                     <td className="py-3 text-gray-600">{formatDate(doc.created_at)}</td>
-                    <td className="py-3">
+                    <td className="py-3 flex gap-2">
                       <a href={`http://127.0.0.1:8000/api/docs/file/${doc.id}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-sm">View PDF</a>
+                      <button
+                        onClick={() => router.push(`/sign?docId=${doc.id}`)}
+                        className="text-green-600 hover:underline text-sm"
+                      >
+                        Sign
+                      </button>
                     </td>
                   </tr>
                 ))}
