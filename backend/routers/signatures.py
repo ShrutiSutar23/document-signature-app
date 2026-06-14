@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from backend.database import get_db
-from backend.models.signature import Signature
-from backend.models.document import Document
-from backend.schemas.signature import SignatureCreate, SignatureResponse
-from backend.middleware.auth_middleware import get_current_user
-from backend.models.user import User
+from database import get_db
+from models.signature import Signature
+from models.document import Document
+from schemas.signature import SignatureCreate, SignatureResponse
+from middleware.auth_middleware import get_current_user
+from models.user import User
 from typing import List
 
 router = APIRouter(prefix="/api/signatures", tags=["Signatures"])
