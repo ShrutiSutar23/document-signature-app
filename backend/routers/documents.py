@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from database import get_db
@@ -6,6 +6,7 @@ from models.document import Document
 from schemas.document import DocumentResponse
 from middleware.auth_middleware import get_current_user
 from models.user import User
+from services.audit_service import log_action
 import os
 import uuid
 import aiofiles
@@ -17,6 +18,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.post("/upload", response_model=DocumentResponse)
 async def upload_document(
+    request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -42,6 +44,17 @@ async def upload_document(
     db.add(document)
     db.commit()
     db.refresh(document)
+
+    # Log action
+    log_action(
+        db,
+        action="document_uploaded",
+        user_id=current_user.id,
+        document_id=document.id,
+        details=f"Document uploaded: {file.filename}",
+        ip_address=request.client.host
+    )
+
     return document
 
 @router.get("", response_model=list[DocumentResponse])

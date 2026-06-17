@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from database import get_db
@@ -8,6 +8,7 @@ from schemas.signature import SignatureCreate, SignatureResponse
 from middleware.auth_middleware import get_current_user
 from models.user import User
 from services.pdf_service import embed_signature_on_pdf
+from services.audit_service import log_action
 from typing import List
 import os
 import uuid
@@ -16,6 +17,7 @@ router = APIRouter(prefix="/api/signatures", tags=["Signatures"])
 
 @router.post("", response_model=SignatureResponse)
 def create_signature(
+    request: Request,
     signature: SignatureCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -39,6 +41,17 @@ def create_signature(
     db.add(new_signature)
     db.commit()
     db.refresh(new_signature)
+
+    # Log action
+    log_action(
+        db,
+        action="signature_placed",
+        user_id=current_user.id,
+        document_id=signature.document_id,
+        details=f"Signature placed at x:{signature.x} y:{signature.y} page:{signature.page}",
+        ip_address=request.client.host
+    )
+
     return new_signature
 
 @router.get("/{doc_id}", response_model=List[SignatureResponse])
@@ -56,10 +69,10 @@ def get_signatures(
 @router.post("/finalize/{doc_id}")
 def finalize_signature(
     doc_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # Get document
     document = db.query(Document).filter(
         Document.id == doc_id,
         Document.user_id == current_user.id
@@ -68,7 +81,6 @@ def finalize_signature(
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # Get latest signature
     signature = db.query(Signature).filter(
         Signature.document_id == doc_id,
         Signature.user_id == current_user.id
@@ -77,7 +89,6 @@ def finalize_signature(
     if not signature:
         raise HTTPException(status_code=404, detail="No signature found for this document")
 
-    # Generate signed PDF
     output_filename = f"signed_{uuid.uuid4()}_{document.original_name}"
 
     signed_path = embed_signature_on_pdf(
@@ -89,10 +100,20 @@ def finalize_signature(
         page_number=signature.page
     )
 
-    # Update document status
+    # Update status
     document.status = "signed"
     signature.status = "signed"
     db.commit()
+
+    # Log action
+    log_action(
+        db,
+        action="document_signed",
+        user_id=current_user.id,
+        document_id=doc_id,
+        details=f"Document signed by {current_user.name}",
+        ip_address=request.client.host
+    )
 
     return {
         "message": "Document signed successfully! ✅",
@@ -117,7 +138,6 @@ def download_signed_pdf(
     if document.status != "signed":
         raise HTTPException(status_code=400, detail="Document is not signed yet")
 
-    # Find signed file
     signed_dir = "signed_uploads"
     signed_files = [
         f for f in os.listdir(signed_dir)
