@@ -2,12 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models.document import Document
-from models.signature import Signature
-from models.user import User
+from models.invite import Invite
 from services.email_service import send_signing_link_email
-from services.auth import create_access_token
+from services.auth import create_access_token, create_signing_token
 from pydantic import BaseModel
-from datetime import timedelta
+from typing import Optional
 import os
 
 router = APIRouter(prefix="/api/public", tags=["Public Signing"])
@@ -18,12 +17,16 @@ class SendSigningLinkRequest(BaseModel):
     document_id: int
     recipient_email: str
 
+class UpdateInviteStatusRequest(BaseModel):
+    token: str
+    status: str
+    rejection_reason: Optional[str] = None
+
 @router.post("/send-signing-link")
 async def send_signing_link(
     request: SendSigningLinkRequest,
     db: Session = Depends(get_db)
 ):
-    # Get document
     document = db.query(Document).filter(
         Document.id == request.document_id
     ).first()
@@ -31,19 +34,17 @@ async def send_signing_link(
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # Generate signing token
-    token = create_access_token(
+    token = create_signing_token(
         data={
             "doc_id": request.document_id,
             "recipient": request.recipient_email,
-            "type": "signing_link"
+            "type": "signing_link",
+            "role": "signer"
         }
     )
 
-    # Generate signing link
     signing_link = f"{BASE_URL}/public-sign?token={token}"
 
-    # Send email
     await send_signing_link_email(
         recipient_email=request.recipient_email,
         document_name=document.original_name,
@@ -63,7 +64,7 @@ def verify_signing_token(token: str, db: Session = Depends(get_db)):
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-    if payload.get("type") != "signing_link":
+    if payload.get("type") not in ["signing_link", "invite_link"]:
         raise HTTPException(status_code=401, detail="Invalid token type")
 
     doc_id = payload.get("doc_id")
@@ -75,5 +76,30 @@ def verify_signing_token(token: str, db: Session = Depends(get_db)):
     return {
         "document_id": doc_id,
         "document_name": document.original_name,
-        "recipient": payload.get("recipient")
+        "recipient": payload.get("recipient"),
+        "role": payload.get("role", "signer")
     }
+
+@router.post("/complete-action")
+async def complete_action(
+    request: UpdateInviteStatusRequest,
+    db: Session = Depends(get_db)
+):
+    from services.auth import verify_token
+
+    payload = verify_token(request.token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    # Update invite status
+    invite = db.query(Invite).filter(
+        Invite.token == request.token
+    ).first()
+
+    if invite:
+        invite.status = request.status
+        if request.rejection_reason:
+            invite.status = "rejected"
+        db.commit()
+
+    return {"message": f"Action completed: {request.status} ✅"}

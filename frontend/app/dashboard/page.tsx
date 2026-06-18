@@ -18,6 +18,7 @@ export default function DashboardPage() {
   const [uploading, setUploading] = useState(false);
   const [rejectDocId, setRejectDocId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -68,7 +69,6 @@ export default function DashboardPage() {
       return;
     }
     try {
-      // Get signatures for this doc first
       const sigResponse = await api.get(`/api/signatures/${docId}`);
       const signatures = sigResponse.data;
       if (signatures.length === 0) {
@@ -110,16 +110,10 @@ export default function DashboardPage() {
       <nav className="bg-white shadow px-6 py-4 flex justify-between items-center">
         <h1 className="text-xl font-bold text-blue-600">📄 Document Signature App</h1>
         <div className="flex gap-3">
-          <button
-            onClick={() => router.push('/audit')}
-            className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition"
-          >
+          <button onClick={() => router.push('/audit')} className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition">
             📋 Audit Trail
           </button>
-          <button
-            onClick={handleLogout}
-            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
-          >
+          <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">
             Logout
           </button>
         </div>
@@ -150,16 +144,10 @@ export default function DashboardPage() {
                 rows={3}
               />
               <div className="flex gap-3">
-                <button
-                  onClick={() => handleReject(rejectDocId)}
-                  className="bg-red-500 text-white px-6 py-2 rounded hover:bg-red-600 transition"
-                >
+                <button onClick={() => handleReject(rejectDocId)} className="bg-red-500 text-white px-6 py-2 rounded hover:bg-red-600 transition">
                   Reject
                 </button>
-                <button
-                  onClick={() => { setRejectDocId(null); setRejectReason(''); }}
-                  className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 transition"
-                >
+                <button onClick={() => { setRejectDocId(null); setRejectReason(''); }} className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 transition">
                   Cancel
                 </button>
               </div>
@@ -169,7 +157,18 @@ export default function DashboardPage() {
 
         {/* Documents List */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4 text-gray-700">My Documents</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-gray-700">My Documents</h2>
+            <select
+              onChange={(e) => setFilter(e.target.value)}
+              className="border border-gray-300 rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Documents</option>
+              <option value="pending">Pending</option>
+              <option value="signed">Signed</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
           {loading ? (
             <p className="text-gray-500">Loading...</p>
           ) : documents.length === 0 ? (
@@ -186,32 +185,37 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {documents.map((doc) => (
-                  <tr key={doc.id} className="border-b hover:bg-gray-50">
-                    <td className="py-3 text-gray-800">{doc.original_name}</td>
-                    <td className="py-3 text-gray-600">{formatSize(doc.file_size)}</td>
-                    <td className="py-3">
-                      <span className={`px-2 py-1 rounded text-sm font-medium ${getStatusColor(doc.status)}`}>
-                        {doc.status}
-                      </span>
-                    </td>
-                    <td className="py-3 text-gray-600">{formatDate(doc.created_at)}</td>
-                    <td className="py-3">
-                      <div className="flex gap-2 flex-wrap">
-                        <a href={`http://127.0.0.1:8000/api/docs/file/${doc.id}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-sm">View</a>
-                        {doc.status === 'pending' && (
-                          <button onClick={() => router.push(`/sign?docId=${doc.id}`)} className="text-green-600 hover:underline text-sm">Sign</button>
-                        )}
-                        {doc.status === 'signed' && (
-                          <a href={`http://127.0.0.1:8000/api/signatures/download/${doc.id}`} target="_blank" rel="noreferrer" className="text-purple-600 hover:underline text-sm">Download</a>
-                        )}
-                        {doc.status !== 'rejected' && (
-                          <button onClick={() => setRejectDocId(doc.id)} className="text-red-600 hover:underline text-sm">Reject</button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {documents
+                  .filter(doc => filter === 'all' || doc.status === filter)
+                  .map((doc) => (
+                    <tr key={doc.id} className="border-b hover:bg-gray-50">
+                      <td className="py-3 text-gray-800">{doc.original_name}</td>
+                      <td className="py-3 text-gray-600">{formatSize(doc.file_size)}</td>
+                      <td className="py-3">
+                        <span className={`px-2 py-1 rounded text-sm font-medium ${getStatusColor(doc.status)}`}>
+                          {doc.status}
+                        </span>
+                      </td>
+                      <td className="py-3 text-gray-600">{formatDate(doc.created_at)}</td>
+                      <td className="py-3">
+                        <div className="flex gap-2 flex-wrap">
+                          <a href={`http://127.0.0.1:8000/api/docs/file/${doc.id}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-sm">View</a>
+                          {doc.status === 'pending' && (
+                              <>
+                                <button onClick={() => router.push(`/sign?docId=${doc.id}`)} className="text-green-600 hover:underline text-sm">Sign</button>
+                                <button onClick={() => router.push(`/invite?docId=${doc.id}`)} className="text-blue-600 hover:underline text-sm">👥 Invite</button>
+                              </>
+              )}
+                          {doc.status === 'signed' && (
+                            <a href={`http://127.0.0.1:8000/api/signatures/download/${doc.id}`} target="_blank" rel="noreferrer" className="text-purple-600 hover:underline text-sm">Download</a>
+                          )}
+                          {doc.status !== 'rejected' && (
+                            <button onClick={() => setRejectDocId(doc.id)} className="text-red-600 hover:underline text-sm">Reject</button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           )}
