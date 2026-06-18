@@ -12,4 +12,5 @@ class Signature(Base):
     y = Column(Float, nullable=False)
     page = Column(Integer, default=1)
     status = Column(String, default="pending")
+    rejection_reason = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

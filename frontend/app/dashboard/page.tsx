@@ -16,6 +16,8 @@ export default function DashboardPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [rejectDocId, setRejectDocId] = useState<number | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -60,6 +62,33 @@ export default function DashboardPage() {
     router.push('/login');
   };
 
+  const handleReject = async (docId: number) => {
+    if (!rejectReason) {
+      alert('Please enter a rejection reason!');
+      return;
+    }
+    try {
+      // Get signatures for this doc first
+      const sigResponse = await api.get(`/api/signatures/${docId}`);
+      const signatures = sigResponse.data;
+      if (signatures.length === 0) {
+        alert('No signatures found for this document!');
+        return;
+      }
+      const latestSig = signatures[signatures.length - 1];
+      await api.patch(`/api/signatures/status/${latestSig.id}`, {
+        status: 'rejected',
+        rejection_reason: rejectReason
+      });
+      alert('Document rejected! ✅');
+      setRejectDocId(null);
+      setRejectReason('');
+      fetchDocuments();
+    } catch (err) {
+      alert('Failed to reject document.');
+    }
+  };
+
   const formatSize = (bytes: number) => {
     return (bytes / 1024).toFixed(1) + ' KB';
   };
@@ -97,6 +126,7 @@ export default function DashboardPage() {
       </nav>
 
       <div className="max-w-4xl mx-auto p-6">
+        {/* Upload Section */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4 text-gray-700">Upload Document</h2>
           <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-blue-400 rounded-lg cursor-pointer hover:bg-blue-50 transition">
@@ -106,6 +136,38 @@ export default function DashboardPage() {
           </label>
         </div>
 
+        {/* Reject Modal */}
+        {rejectDocId && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+              <h3 className="text-lg font-semibold mb-4 text-gray-700">❌ Reject Document</h3>
+              <p className="text-gray-500 text-sm mb-4">Please provide a reason for rejection:</p>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Enter rejection reason..."
+                className="w-full border border-gray-300 rounded p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-red-500"
+                rows={3}
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleReject(rejectDocId)}
+                  className="bg-red-500 text-white px-6 py-2 rounded hover:bg-red-600 transition"
+                >
+                  Reject
+                </button>
+                <button
+                  onClick={() => { setRejectDocId(null); setRejectReason(''); }}
+                  className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Documents List */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold mb-4 text-gray-700">My Documents</h2>
           {loading ? (
@@ -134,14 +196,19 @@ export default function DashboardPage() {
                       </span>
                     </td>
                     <td className="py-3 text-gray-600">{formatDate(doc.created_at)}</td>
-                    <td className="py-3 flex gap-2">
-                      <a href={`http://127.0.0.1:8000/api/docs/file/${doc.id}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-sm">View PDF</a>
-                      <button
-                        onClick={() => router.push(`/sign?docId=${doc.id}`)}
-                        className="text-green-600 hover:underline text-sm"
-                      >
-                        Sign
-                      </button>
+                    <td className="py-3">
+                      <div className="flex gap-2 flex-wrap">
+                        <a href={`http://127.0.0.1:8000/api/docs/file/${doc.id}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-sm">View</a>
+                        {doc.status === 'pending' && (
+                          <button onClick={() => router.push(`/sign?docId=${doc.id}`)} className="text-green-600 hover:underline text-sm">Sign</button>
+                        )}
+                        {doc.status === 'signed' && (
+                          <a href={`http://127.0.0.1:8000/api/signatures/download/${doc.id}`} target="_blank" rel="noreferrer" className="text-purple-600 hover:underline text-sm">Download</a>
+                        )}
+                        {doc.status !== 'rejected' && (
+                          <button onClick={() => setRejectDocId(doc.id)} className="text-red-600 hover:underline text-sm">Reject</button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

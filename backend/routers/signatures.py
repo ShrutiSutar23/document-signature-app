@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models.signature import Signature
 from models.document import Document
-from schemas.signature import SignatureCreate, SignatureResponse
+from schemas.signature import SignatureCreate, SignatureResponse, SignatureUpdate
 from middleware.auth_middleware import get_current_user
 from models.user import User
 from services.pdf_service import embed_signature_on_pdf
@@ -119,6 +119,58 @@ def finalize_signature(
         "message": "Document signed successfully! ✅",
         "signed_file": output_filename,
         "download_url": f"/api/signatures/download/{doc_id}"
+    }
+
+@router.patch("/status/{signature_id}")
+def update_signature_status(
+    signature_id: int,
+    update: SignatureUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    signature = db.query(Signature).filter(
+        Signature.id == signature_id,
+        Signature.user_id == current_user.id
+    ).first()
+
+    if not signature:
+        raise HTTPException(status_code=404, detail="Signature not found")
+
+    # Validate status
+    allowed_statuses = ["pending", "signed", "rejected"]
+    if update.status not in allowed_statuses:
+        raise HTTPException(status_code=400, detail=f"Status must be one of {allowed_statuses}")
+
+    # Update signature
+    signature.status = update.status
+    if update.rejection_reason:
+        signature.rejection_reason = update.rejection_reason
+
+    # Update document status too
+    document = db.query(Document).filter(
+        Document.id == signature.document_id
+    ).first()
+    if document:
+        document.status = update.status
+
+    db.commit()
+
+    # Log action
+    log_action(
+        db,
+        action=f"signature_{update.status}",
+        user_id=current_user.id,
+        document_id=signature.document_id,
+        details=f"Signature {update.status}" + (f" - Reason: {update.rejection_reason}" if update.rejection_reason else ""),
+        ip_address=request.client.host
+    )
+
+    return {
+        "message": f"Signature {update.status} successfully! ✅",
+        "signature_id": signature_id,
+        "status": update.status,
+        "rejection_reason": update.rejection_reason
     }
 
 @router.get("/download/{doc_id}")
