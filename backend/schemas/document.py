@@ -9,6 +9,7 @@ class DocumentResponse(BaseModel):
     original_name: str
     file_size: int
     status: str
+    file_path: str
     expires_at: Optional[datetime] = None
     created_at: datetime
 

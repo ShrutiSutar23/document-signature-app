@@ -9,7 +9,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-BUCKET_NAME = "documents"
+BUCKET_NAME = "documentsignapp"
 
 def upload_file_to_supabase(file_path: str, file_name: str) -> str:
     with open(file_path, 'rb') as f:

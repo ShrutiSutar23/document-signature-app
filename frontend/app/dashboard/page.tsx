@@ -12,6 +12,7 @@ interface Document {
   status: string;
   created_at: string;
   expires_at: string | null;
+  file_path: string;
 }
 
 interface Stats {
@@ -79,6 +80,25 @@ export default function DashboardPage() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     router.push('/login');
+  };
+
+  const handleViewPdf = (doc: Document) => {
+    // If file is stored in Supabase (public URL), open directly
+    if (doc.file_path && doc.file_path.startsWith('http')) {
+      window.open(doc.file_path, '_blank');
+      return;
+    }
+    // Otherwise use API with token
+    const token = localStorage.getItem('token');
+    fetch(`${API_URL}/api/docs/file/${doc.id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    .then(res => res.blob())
+    .then(blob => {
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+    })
+    .catch(() => alert('Failed to open PDF'));
   };
 
   const handleReject = async (docId: number) => {
@@ -227,7 +247,7 @@ export default function DashboardPage() {
                       </td>
                       <td className="py-3">
                         <div className="flex gap-2 flex-wrap">
-                          <a href={`${API_URL}/api/docs/file/${doc.id}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-sm">View</a>
+                          <button onClick={() => handleViewPdf(doc)} className="text-blue-600 hover:underline text-sm">View</button>
                           {doc.status === 'pending' && (
                             <>
                               <button onClick={() => router.push(`/sign?docId=${doc.id}`)} className="text-green-600 hover:underline text-sm">Sign</button>
@@ -235,7 +255,7 @@ export default function DashboardPage() {
                             </>
                           )}
                           {doc.status === 'signed' && (
-                            <a href={`${API_URL}/api/signatures/download/${doc.id}`} target="_blank" rel="noreferrer" className="text-purple-600 hover:underline text-sm">Download</a>
+                            <button onClick={() => handleViewPdf(doc)} className="text-purple-600 hover:underline text-sm">Download</button>
                           )}
                           {doc.status !== 'rejected' && (
                             <button onClick={() => setRejectDocId(doc.id)} className="text-red-600 hover:underline text-sm">Reject</button>
