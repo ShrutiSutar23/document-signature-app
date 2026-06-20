@@ -45,6 +45,7 @@ export default function DashboardPage() {
     try {
       const response = await api.get('/api/docs');
       const docs = response.data;
+      console.log('Documents:', docs); // Add this line
       setDocuments(docs);
       setStats({
         total: docs.length,
@@ -83,12 +84,12 @@ export default function DashboardPage() {
   };
 
   const handleViewPdf = (doc: Document) => {
-    // If file is stored in Supabase (public URL), open directly
+    console.log('doc file_path:', doc.file_path);
+    console.log('doc:', doc);
     if (doc.file_path && doc.file_path.startsWith('http')) {
       window.open(doc.file_path, '_blank');
       return;
     }
-    // Otherwise use API with token
     const token = localStorage.getItem('token');
     fetch(`${API_URL}/api/docs/file/${doc.id}`, {
       headers: { Authorization: `Bearer ${token}` }
