@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import api from '../utils/api';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -22,7 +22,7 @@ interface DraggableItem {
   onPdf: boolean;
 }
 
-export default function SignPage() {
+function SignPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const docIdParam = searchParams.get('docId') || '';
@@ -39,9 +39,9 @@ export default function SignPage() {
   const [pdfFile, setPdfFile] = useState<{ url: string; httpHeaders: { Authorization: string } } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [items, setItems] = useState<DraggableItem[]>([
-    { id: 'signature', type: 'signature', x: 100, y: 100, visible: true },
-    { id: 'name', type: 'name', x: 100, y: 200, visible: true },
-    { id: 'date', type: 'date', x: 100, y: 300, visible: true },
+    { id: 'signature', type: 'signature', x: 100, y: 100, visible: true, onPdf: false },
+    { id: 'name', type: 'name', x: 100, y: 200, visible: true, onPdf: false },
+    { id: 'date', type: 'date', x: 100, y: 300, visible: true, onPdf: false },
   ]);
   const sigCanvasRef = useRef<SignatureCanvas>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -404,5 +404,13 @@ export default function SignPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function SignPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-gray-500">Loading...</div>}>
+      <SignPageContent />
+    </Suspense>
   );
 }

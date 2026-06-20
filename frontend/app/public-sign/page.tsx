@@ -1,10 +1,10 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import SignatureCanvas from 'react-signature-canvas';
 import api from '../utils/api';
 
-export default function PublicSignPage() {
+function PublicSignPageContent() {
   const searchParams = useSearchParams();
   const [docInfo, setDocInfo] = useState<any>(null);
   const [error, setError] = useState('');
@@ -252,5 +252,17 @@ export default function PublicSignPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PublicSignPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-500">Loading...</p>
+      </div>
+    }>
+      <PublicSignPageContent />
+    </Suspense>
   );
 }
