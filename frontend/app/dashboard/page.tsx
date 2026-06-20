@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { useRouter } from 'next/navigation';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+
 interface Document {
   id: number;
   original_name: string;
@@ -78,8 +80,6 @@ export default function DashboardPage() {
     localStorage.removeItem('token');
     router.push('/login');
   };
-
-
 
   const handleReject = async (docId: number) => {
     if (!rejectReason) {
@@ -227,7 +227,7 @@ export default function DashboardPage() {
                       </td>
                       <td className="py-3">
                         <div className="flex gap-2 flex-wrap">
-                          <a href={`http://127.0.0.1:8000/api/docs/file/${doc.id}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-sm">View</a>
+                          <a href={`${API_URL}/api/docs/file/${doc.id}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-sm">View</a>
                           {doc.status === 'pending' && (
                             <>
                               <button onClick={() => router.push(`/sign?docId=${doc.id}`)} className="text-green-600 hover:underline text-sm">Sign</button>
@@ -235,7 +235,7 @@ export default function DashboardPage() {
                             </>
                           )}
                           {doc.status === 'signed' && (
-                            <a href={`http://127.0.0.1:8000/api/signatures/download/${doc.id}`} target="_blank" rel="noreferrer" className="text-purple-600 hover:underline text-sm">Download</a>
+                            <a href={`${API_URL}/api/signatures/download/${doc.id}`} target="_blank" rel="noreferrer" className="text-purple-600 hover:underline text-sm">Download</a>
                           )}
                           {doc.status !== 'rejected' && (
                             <button onClick={() => setRejectDocId(doc.id)} className="text-red-600 hover:underline text-sm">Reject</button>

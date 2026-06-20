@@ -51,9 +51,10 @@ function SignPageContent() {
   const [pdfLoaded, setPdfLoaded] = useState(false);
 
   useEffect(() => {
-    if (docIdParam) {
-      setDocId(docIdParam);
-      setPdfUrl(`http://127.0.0.1:8000/api/docs/file/${docIdParam}`);
+    const id = searchParams.get('docId');
+    if (id) {
+      setDocId(id);
+      setPdfUrl(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/docs/file/${id}`);
     }
 
     const savedToken = localStorage.getItem('token');
