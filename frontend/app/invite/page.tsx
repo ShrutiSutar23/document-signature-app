@@ -24,20 +24,38 @@ export default function InvitePage() {
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
     const id = searchParams.get('docId');
     if (id) {
       setDocId(id);
       fetchInvites(id);
+      // Auto refresh every 10 seconds
+      const interval = setInterval(() => {
+        fetchInvites(id);
+      }, 10000);
+      return () => clearInterval(interval);
     }
   }, [searchParams]);
 
   const fetchInvites = async (id: string) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
     setLoading(true);
     try {
       const response = await api.get(`/api/invites/${id}`);
       setInvites(response.data);
-    } catch (err) {
-      console.error('Failed to fetch invites');
+    } catch (err: any) {
+      console.error('Failed to fetch invites', err?.response?.status, err?.response?.data);
+      if (err?.response?.status === 401) {
+        router.push('/login');
+      }
     } finally {
       setLoading(false);
     }
@@ -61,8 +79,12 @@ export default function InvitePage() {
       setEmail('');
       setRole('signer');
       fetchInvites(docId);
-    } catch (err) {
-      alert('Failed to send invite. Please try again.');
+    } catch (err: any) {
+      if (err?.response?.status === 401) {
+        router.push('/login');
+      } else {
+        alert('Failed to send invite. Please try again.');
+      }
     } finally {
       setSending(false);
     }
@@ -174,7 +196,15 @@ export default function InvitePage() {
 
         {/* Invites List */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4 text-gray-700">📋 Sent Invites</h2>
+          <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-700">📋 Sent Invites</h2>
+              <button
+                  onClick={() => fetchInvites(docId)}
+                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition text-sm"
+              >
+                🔄 Refresh Status
+              </button>
+          </div>
           {loading ? (
             <p className="text-gray-500">Loading invites...</p>
           ) : invites.length === 0 ? (

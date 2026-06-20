@@ -9,6 +9,14 @@ interface Document {
   file_size: number;
   status: string;
   created_at: string;
+  expires_at: string | null;
+}
+
+interface Stats {
+  total: number;
+  pending: number;
+  signed: number;
+  rejected: number;
 }
 
 export default function DashboardPage() {
@@ -19,6 +27,7 @@ export default function DashboardPage() {
   const [rejectDocId, setRejectDocId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [filter, setFilter] = useState('all');
+  const [stats, setStats] = useState<Stats>({ total: 0, pending: 0, signed: 0, rejected: 0 });
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -32,7 +41,14 @@ export default function DashboardPage() {
   const fetchDocuments = async () => {
     try {
       const response = await api.get('/api/docs');
-      setDocuments(response.data);
+      const docs = response.data;
+      setDocuments(docs);
+      setStats({
+        total: docs.length,
+        pending: docs.filter((d: Document) => d.status === 'pending').length,
+        signed: docs.filter((d: Document) => d.status === 'signed').length,
+        rejected: docs.filter((d: Document) => d.status === 'rejected').length,
+      });
     } catch (err) {
       router.push('/login');
     } finally {
@@ -62,6 +78,8 @@ export default function DashboardPage() {
     localStorage.removeItem('token');
     router.push('/login');
   };
+
+
 
   const handleReject = async (docId: number) => {
     if (!rejectReason) {
@@ -180,7 +198,7 @@ export default function DashboardPage() {
                   <th className="pb-3">File Name</th>
                   <th className="pb-3">Size</th>
                   <th className="pb-3">Status</th>
-                  <th className="pb-3">Date</th>
+                  <th className="pb-3">Expires</th>
                   <th className="pb-3">Action</th>
                 </tr>
               </thead>
@@ -196,16 +214,26 @@ export default function DashboardPage() {
                           {doc.status}
                         </span>
                       </td>
-                      <td className="py-3 text-gray-600">{formatDate(doc.created_at)}</td>
+                      <td className="py-3 text-sm">
+                        {doc.expires_at ? (
+                          new Date(doc.expires_at) < new Date() ? (
+                            <span className="text-red-500 font-medium">⚠️ Expired</span>
+                          ) : (
+                            <span className="text-gray-600">{formatDate(doc.expires_at)}</span>
+                          )
+                        ) : (
+                          <span className="text-gray-400">No expiry</span>
+                        )}
+                      </td>
                       <td className="py-3">
                         <div className="flex gap-2 flex-wrap">
                           <a href={`http://127.0.0.1:8000/api/docs/file/${doc.id}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-sm">View</a>
                           {doc.status === 'pending' && (
-                              <>
-                                <button onClick={() => router.push(`/sign?docId=${doc.id}`)} className="text-green-600 hover:underline text-sm">Sign</button>
-                                <button onClick={() => router.push(`/invite?docId=${doc.id}`)} className="text-blue-600 hover:underline text-sm">👥 Invite</button>
-                              </>
-              )}
+                            <>
+                              <button onClick={() => router.push(`/sign?docId=${doc.id}`)} className="text-green-600 hover:underline text-sm">Sign</button>
+                              <button onClick={() => router.push(`/invite?docId=${doc.id}`)} className="text-blue-600 hover:underline text-sm">👥 Invite</button>
+                            </>
+                          )}
                           {doc.status === 'signed' && (
                             <a href={`http://127.0.0.1:8000/api/signatures/download/${doc.id}`} target="_blank" rel="noreferrer" className="text-purple-600 hover:underline text-sm">Download</a>
                           )}
@@ -219,6 +247,26 @@ export default function DashboardPage() {
               </tbody>
             </table>
           )}
+        </div>
+
+        {/* Stats Cards - Bottom */}
+        <div className="grid grid-cols-4 gap-4 mt-6">
+          <div className="bg-white rounded-lg shadow p-4 text-center">
+            <p className="text-3xl font-bold text-blue-600">{stats.total}</p>
+            <p className="text-gray-500 text-sm mt-1">Total Documents</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4 text-center">
+            <p className="text-3xl font-bold text-yellow-500">{stats.pending}</p>
+            <p className="text-gray-500 text-sm mt-1">Pending</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4 text-center">
+            <p className="text-3xl font-bold text-green-600">{stats.signed}</p>
+            <p className="text-gray-500 text-sm mt-1">Signed</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4 text-center">
+            <p className="text-3xl font-bold text-red-500">{stats.rejected}</p>
+            <p className="text-gray-500 text-sm mt-1">Rejected</p>
+          </div>
         </div>
       </div>
     </div>

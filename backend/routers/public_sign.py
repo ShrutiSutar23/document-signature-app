@@ -7,6 +7,7 @@ from services.email_service import send_signing_link_email
 from services.auth import create_access_token, create_signing_token
 from pydantic import BaseModel
 from typing import Optional
+from models.user import User
 import os
 
 router = APIRouter(prefix="/api/public", tags=["Public Signing"])
@@ -86,6 +87,7 @@ async def complete_action(
     db: Session = Depends(get_db)
 ):
     from services.auth import verify_token
+    from services.email_service import send_notification_email
 
     payload = verify_token(request.token)
     if not payload:
@@ -101,5 +103,32 @@ async def complete_action(
         if request.rejection_reason:
             invite.status = "rejected"
         db.commit()
+
+        # Get document
+        document = db.query(Document).filter(
+            Document.id == invite.document_id
+        ).first()
+
+        # Get document owner
+        if document:
+            owner = db.query(User).filter(
+                User.id == document.user_id
+            ).first()
+
+            # Send notification to document owner
+            if owner:
+                action_text = {
+                    "signed": "✍️ Signed the document",
+                    "approved": "✅ Approved the document",
+                    "rejected": "❌ Rejected the document",
+                    "witnessed": "👁️ Witnessed the document signing"
+                }.get(request.status, request.status)
+
+                await send_notification_email(
+                    recipient_email=owner.email,
+                    document_name=document.original_name,
+                    signer_name=invite.name,
+                    action=action_text
+                )
 
     return {"message": f"Action completed: {request.status} ✅"}

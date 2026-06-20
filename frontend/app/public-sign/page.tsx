@@ -47,8 +47,8 @@ export default function PublicSignPage() {
         token: token,
         status: 'signed'
       });
-    } catch (err) {
-      console.error('Failed to update status');
+    } catch (err: any) {
+      console.error('Failed to update status', err?.response?.status, err?.response?.data);
     }
     setStep('done');
   };

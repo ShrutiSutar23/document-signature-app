@@ -5,6 +5,7 @@ from models.user import User
 from schemas.user import UserRegister, UserLogin, UserResponse
 from services.auth import hash_password, verify_password, create_access_token
 from services.audit_service import log_action
+from middleware.auth_middleware import get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -57,5 +58,9 @@ def login(request: Request, user: UserLogin, db: Session = Depends(get_db)):
     )
 
     # Generate JWT token
-    token = create_access_token(data={"sub": db_user.email, "user_id": db_user.id})
+    token = create_access_token(data={"sub": db_user.email, "user_id": db_user.id, "name": db_user.name})
     return {"access_token": token, "token_type": "bearer"}
+
+@router.get("/me", response_model=UserResponse)
+def me(current_user: User = Depends(get_current_user)):
+    return current_user

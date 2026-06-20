@@ -71,7 +71,8 @@ def finalize_signature(
     doc_id: int,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    password: str = None
 ):
     document = db.query(Document).filter(
         Document.id == doc_id,
@@ -97,7 +98,8 @@ def finalize_signature(
         signer_name=current_user.name,
         x=signature.x,
         y=signature.y,
-        page_number=signature.page
+        page_number=signature.page,
+        password=password
     )
 
     # Update status
@@ -111,14 +113,15 @@ def finalize_signature(
         action="document_signed",
         user_id=current_user.id,
         document_id=doc_id,
-        details=f"Document signed by {current_user.name}",
+        details=f"Document signed by {current_user.name}" + (" with password protection" if password else ""),
         ip_address=request.client.host
     )
 
     return {
         "message": "Document signed successfully! ✅",
         "signed_file": output_filename,
-        "download_url": f"/api/signatures/download/{doc_id}"
+        "download_url": f"/api/signatures/download/{doc_id}",
+        "password_protected": password is not None
     }
 
 @router.patch("/status/{signature_id}")

@@ -48,3 +48,34 @@ async def send_signing_link_email(
 
     fm = FastMail(conf)
     await fm.send_message(message)
+
+async def send_notification_email(
+    recipient_email: str,
+    document_name: str,
+    signer_name: str,
+    action: str
+):
+    html_content = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; padding: 20px;">
+        <h2 style="color: #2563eb;">📄 Document Signature Notification</h2>
+        <p>An update on your document:</p>
+        <p><strong>Document:</strong> {document_name}</p>
+        <p><strong>Action:</strong> {action}</p>
+        <p><strong>By:</strong> {signer_name}</p>
+        <p style="color: #666; margin-top: 20px; font-size: 12px;">
+            Login to your account to view the document status.
+        </p>
+    </body>
+    </html>
+    """
+
+    message = MessageSchema(
+        subject=f"Document Update: {document_name}",
+        recipients=[recipient_email],
+        body=html_content,
+        subtype="html"
+    )
+
+    fm = FastMail(conf)
+    await fm.send_message(message)

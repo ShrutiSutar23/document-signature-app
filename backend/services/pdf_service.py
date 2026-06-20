@@ -11,7 +11,8 @@ def embed_signature_on_pdf(
     signer_name: str,
     x: float,
     y: float,
-    page_number: int = 1
+    page_number: int = 1,
+    password: str = None
 ) -> str:
     # Open the PDF
     doc = fitz.open(input_path)
@@ -55,7 +56,19 @@ def embed_signature_on_pdf(
 
     # Save signed PDF
     output_path = os.path.join(SIGNED_DIR, output_filename)
-    doc.save(output_path)
+
+    # Add password protection if provided
+    if password:
+        doc.save(
+            output_path,
+            encryption=fitz.PDF_ENCRYPT_AES_256,
+            user_pw=password,
+            owner_pw=password + "_owner",
+            permissions=fitz.PDF_PERM_PRINT | fitz.PDF_PERM_COPY
+        )
+    else:
+        doc.save(output_path)
+
     doc.close()
 
     return output_path
