@@ -13,6 +13,7 @@ interface Document {
   created_at: string;
   expires_at: string | null;
   file_path: string;
+  signed_file_url: string | null;
 }
 
 interface Stats {
@@ -45,7 +46,6 @@ export default function DashboardPage() {
     try {
       const response = await api.get('/api/docs');
       const docs = response.data;
-      console.log('Documents:', docs); // Add this line
       setDocuments(docs);
       setStats({
         total: docs.length,
@@ -84,10 +84,9 @@ export default function DashboardPage() {
   };
 
   const handleViewPdf = (doc: Document) => {
-    console.log('doc file_path:', doc.file_path);
-    console.log('doc:', doc);
-    if (doc.file_path && doc.file_path.startsWith('http')) {
-      window.open(doc.file_path, '_blank');
+    const url = doc.signed_file_url || doc.file_path;
+    if (url && url.startsWith('http')) {
+      window.open(url, '_blank');
       return;
     }
     const token = localStorage.getItem('token');
@@ -250,11 +249,9 @@ export default function DashboardPage() {
                         <div className="flex gap-2 flex-wrap">
                           <button onClick={() => handleViewPdf(doc)} className="text-blue-600 hover:underline text-sm">View</button>
                           {doc.status === 'pending' && (
-                            <>
-                              <button onClick={() => router.push(`/sign?docId=${doc.id}`)} className="text-green-600 hover:underline text-sm">Sign</button>
-                              <button onClick={() => router.push(`/invite?docId=${doc.id}`)} className="text-blue-600 hover:underline text-sm">👥 Invite</button>
-                            </>
+                            <button onClick={() => router.push(`/sign?docId=${doc.id}`)} className="text-green-600 hover:underline text-sm">Sign</button>
                           )}
+                          <button onClick={() => router.push(`/invite?docId=${doc.id}`)} className="text-blue-600 hover:underline text-sm">👥 Invite</button>
                           {doc.status === 'signed' && (
                             <button onClick={() => handleViewPdf(doc)} className="text-purple-600 hover:underline text-sm">Download</button>
                           )}

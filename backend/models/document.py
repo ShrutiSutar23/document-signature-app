@@ -14,3 +14,4 @@ class Document(Base):
     status = Column(String, default="pending")
     expires_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    signed_file_url = Column(String, nullable=True)

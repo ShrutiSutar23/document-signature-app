@@ -102,8 +102,19 @@ def finalize_signature(
         password=password
     )
 
-    # Update status
+    # Upload signed PDF to Supabase
+    try:
+        from services.storage_service import upload_file_to_supabase
+        signed_public_url = upload_file_to_supabase(signed_path, f"signed/{output_filename}")
+        # Remove local signed file
+        if os.path.exists(signed_path):
+            os.remove(signed_path)
+    except Exception as e:
+        signed_public_url = signed_path
+
+    # Update status and store signed URL
     document.status = "signed"
+    document.signed_file_url = signed_public_url
     signature.status = "signed"
     db.commit()
 
@@ -113,15 +124,14 @@ def finalize_signature(
         action="document_signed",
         user_id=current_user.id,
         document_id=doc_id,
-        details=f"Document signed by {current_user.name}" + (" with password protection" if password else ""),
+        details=f"Document signed by {current_user.name}",
         ip_address=request.client.host
     )
 
     return {
         "message": "Document signed successfully! ✅",
         "signed_file": output_filename,
-        "download_url": f"/api/signatures/download/{doc_id}",
-        "password_protected": password is not None
+        "download_url": signed_public_url
     }
 
 @router.patch("/status/{signature_id}")

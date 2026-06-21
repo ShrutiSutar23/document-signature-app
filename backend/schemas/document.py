@@ -10,6 +10,7 @@ class DocumentResponse(BaseModel):
     file_size: int
     status: str
     file_path: str
+    signed_file_url: Optional[str] = None
     expires_at: Optional[datetime] = None
     created_at: datetime
 

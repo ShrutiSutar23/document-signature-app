@@ -49,6 +49,7 @@ function SignPageContent() {
   const today = new Date().toISOString().split('T')[0];
 
   const [pdfLoaded, setPdfLoaded] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     const id = searchParams.get('docId');
@@ -310,7 +311,22 @@ function SignPageContent() {
                   <label htmlFor="usePassword" className="text-gray-600 text-sm font-medium">🔒 Password protect the signed PDF</label>
                 </div>
                 {usePassword && (
-                  <input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter password for PDF" className="block border border-gray-300 rounded p-2 w-64 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <div className="relative w-64">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Enter password for PDF"
+                        className="block border border-gray-300 rounded p-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-2 top-2 text-gray-500 hover:text-gray-700"
+                      >
+                        {showPassword ? '🙈' : '👁️'}
+                      </button>
+                    </div>
                 )}
               </div>
 
