@@ -165,6 +165,11 @@ function SignPageContent() {
   const handleFinalize = async () => {
     if (!docId) {
       alert('Please enter a Document ID');
+      console.log('Items:', items);
+      console.log('sigItem:', sigItem);
+      console.log('nameItem:', nameItem);
+      console.log('dateItem:', dateItem);
+      console.log('Payload:', payload);
       return;
     }
   

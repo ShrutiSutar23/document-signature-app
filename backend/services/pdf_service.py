@@ -48,7 +48,7 @@ def embed_signature_on_pdf(
     CANVAS_WIDTH = 500  # matches Page width={500} in sign page
     CANVAS_HEIGHT = 842
 
-     # Scale factors based on actual canvas vs PDF dimensions
+     # Canvas dimensions (frontend)
     scale_x = page_width / canvas_width
     scale_y = page_height / canvas_height
 
@@ -58,13 +58,36 @@ def embed_signature_on_pdf(
             if ',' in signature_image_base64:
                 signature_image_base64 = signature_image_base64.split(',')[1]
             img_data = base64.b64decode(signature_image_base64)
-            # Scale coordinates
-            scaled_x = x * scale_x
-            scaled_y = y * scale_y
+            scaled_x = min(max(0, x * scale_x), page_width - 120)
+            scaled_y = min(max(0, y * scale_y), page_height - 40)
             img_rect = fitz.Rect(scaled_x, scaled_y, scaled_x + 120, scaled_y + 40)
             page.insert_image(img_rect, stream=img_data)
         except Exception as e:
             print(f"Error embedding signature image: {e}")
+
+    if name_x is not None and name_y is not None:
+        scaled_nx = min(max(0, name_x * scale_x), page_width - 150)
+        scaled_ny = min(max(0, name_y * scale_y), page_height - 20)
+        name_rect = fitz.Rect(scaled_nx, scaled_ny, scaled_nx + 150, scaled_ny + 20)
+        page.insert_textbox(
+            name_rect,
+            f"Signed by: {signer_name}",
+            fontsize=10,
+            color=(0, 0, 0),
+            align=fitz.TEXT_ALIGN_LEFT
+        )
+
+    if date_x is not None and date_y is not None:
+        scaled_dx = min(max(0, date_x * scale_x), page_width - 150)
+        scaled_dy = min(max(0, date_y * scale_y), page_height - 20)
+        date_rect = fitz.Rect(scaled_dx, scaled_dy, scaled_dx + 150, scaled_dy + 20)
+        page.insert_textbox(
+            date_rect,
+            f"Date: {signed_at}",
+            fontsize=10,
+            color=(0, 0, 0),
+            align=fitz.TEXT_ALIGN_LEFT
+        )
 
     # Embed signer name if position provided
     if name_x is not None and name_y is not None:
