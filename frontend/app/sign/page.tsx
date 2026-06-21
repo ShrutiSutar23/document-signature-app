@@ -163,54 +163,68 @@ function SignPageContent() {
   };
 
   const handleFinalize = async () => {
-    if (!docId) {
-      alert('Please enter a Document ID');
-      console.log('Items:', items);
-      console.log('sigItem:', sigItem);
-      console.log('nameItem:', nameItem);
-      console.log('dateItem:', dateItem);
-      console.log('Payload:', payload);
-      return;
+  const sigItem = items.find(i => i.id === 'signature' && i.onPdf);
+  const nameItem = items.find(i => i.id === 'name' && i.onPdf);
+  const dateItem = items.find(i => i.id === 'date' && i.onPdf);
+
+  const payload = {
+    signature_image: signatureImage || null,
+    signer_name: signerName,
+    signature_x: sigItem?.x || null,
+    signature_y: sigItem?.y || null,
+    name_x: nameItem?.x || null,
+    name_y: nameItem?.y || null,
+    date_x: dateItem?.x || null,
+    date_y: dateItem?.y || null,
+    password: usePassword && password ? password : null,
+    canvas_width: 500,
+    canvas_height: 842,
+  };
+
+  if (!docId) {
+    alert('Please enter a Document ID');
+
+    console.log('Items:', items);
+    console.log('sigItem:', sigItem);
+    console.log('nameItem:', nameItem);
+    console.log('dateItem:', dateItem);
+    console.log('Payload:', payload);
+
+    return;
+  }
+
+  try {
+    const params =
+      usePassword && password
+        ? `?password=${encodeURIComponent(password)}`
+        : '';
+
+    console.log('Sending payload:', payload);
+
+    const response = await api.post(
+      `/api/signatures/finalize/${parseInt(docId)}${params}`,
+      payload
+    );
+
+    if (usePassword && password) {
+      alert(
+        `Document signed & password protected! 🔒\nPassword: ${password}`
+      );
+    } else {
+      alert(response.data.message || 'Document signed successfully!');
     }
-  
 
-    try {
-      // Get positions of all visible items on PDF
-      const sigItem = items.find(i => i.id === 'signature' && i.onPdf);
-      const nameItem = items.find(i => i.id === 'name' && i.onPdf);
-      const dateItem = items.find(i => i.id === 'date' && i.onPdf);
+    router.push('/dashboard');
+  } catch (err: any) {
+    console.error('Finalize failed:', err);
 
-      const payload = {
-        signature_image: signatureImage || null,
-        signer_name: signerName,
-        signature_x: sigItem?.x || null,
-        signature_y: sigItem?.y || null,
-        name_x: nameItem?.x || null,
-        name_y: nameItem?.y || null,
-        date_x: dateItem?.x || null,
-        date_y: dateItem?.y || null,
-        password: usePassword && password ? password : null,
-        canvas_width: 500,
-        canvas_height: 842,
-      };
+    const errorMessage =
+      err.response?.data?.detail ||
+      err.response?.data?.message ||
+      err.message ||
+      'Failed to finalize signature.';
 
-      const params = usePassword && password ? `?password=${password}` : '';
-      const response = await api.post(`/api/signatures/finalize/${parseInt(docId)}${params}`, payload);
-
-      if (usePassword && password) {
-        alert(`Document signed & password protected! 🔒\nPassword: ${password}`);
-      } else {
-        alert(`${response.data.message}`);
-      }
-      router.push('/dashboard');
-    } catch (err: any) {
-      console.error('Finalize failed:', err);
-      const errorMessage =
-        err.response?.data?.detail ||
-        err.response?.data?.message ||
-        err.message ||
-        'Failed to finalize signature.';
-      alert(errorMessage);
+    alert(errorMessage);
     }
   };
 
