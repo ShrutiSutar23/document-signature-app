@@ -42,21 +42,33 @@ def embed_signature_on_pdf(
 
     signed_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
+    # Canvas dimensions (frontend)
+    CANVAS_WIDTH = 500  # matches Page width={500} in sign page
+    CANVAS_HEIGHT = 842
+
+    # Scale factors
+    scale_x = page_width / CANVAS_WIDTH
+    scale_y = page_height / CANVAS_HEIGHT
+
     # Embed signature image if provided
     if signature_image_base64 and x is not None and y is not None:
         try:
-            # Remove data URL prefix if present
             if ',' in signature_image_base64:
                 signature_image_base64 = signature_image_base64.split(',')[1]
             img_data = base64.b64decode(signature_image_base64)
-            img_rect = fitz.Rect(x, y, x + 160, y + 50)
+            # Scale coordinates
+            scaled_x = x * scale_x
+            scaled_y = y * scale_y
+            img_rect = fitz.Rect(scaled_x, scaled_y, scaled_x + 120, scaled_y + 40)
             page.insert_image(img_rect, stream=img_data)
         except Exception as e:
             print(f"Error embedding signature image: {e}")
 
     # Embed signer name if position provided
     if name_x is not None and name_y is not None:
-        name_rect = fitz.Rect(name_x, name_y, name_x + 150, name_y + 20)
+        scaled_nx = name_x * scale_x
+        scaled_ny = name_y * scale_y
+        name_rect = fitz.Rect(scaled_nx, scaled_ny, scaled_nx + 150, scaled_ny + 20)
         page.insert_textbox(
             name_rect,
             f"Signed by: {signer_name}",
@@ -67,7 +79,9 @@ def embed_signature_on_pdf(
 
     # Embed date if position provided
     if date_x is not None and date_y is not None:
-        date_rect = fitz.Rect(date_x, date_y, date_x + 150, date_y + 20)
+        scaled_dx = date_x * scale_x
+        scaled_dy = date_y * scale_y
+        date_rect = fitz.Rect(scaled_dx, scaled_dy, scaled_dx + 150, scaled_dy + 20)
         page.insert_textbox(
             date_rect,
             f"Date: {signed_at}",
