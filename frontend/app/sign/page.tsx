@@ -167,6 +167,7 @@ function SignPageContent() {
       alert('Please enter a Document ID');
       return;
     }
+  
 
     try {
       // Get positions of all visible items on PDF
@@ -184,6 +185,8 @@ function SignPageContent() {
         date_x: dateItem?.x || null,
         date_y: dateItem?.y || null,
         password: usePassword && password ? password : null,
+        canvas_width: 500,
+        canvas_height: 842,
       };
 
       const params = usePassword && password ? `?password=${password}` : '';

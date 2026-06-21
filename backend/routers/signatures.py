@@ -78,6 +78,8 @@ class FinalizeRequest(BaseModel):
     date_x: Optional[float] = None
     date_y: Optional[float] = None
     password: Optional[str] = None
+    canvas_width: Optional[float] = 500
+    canvas_height: Optional[float] = 842
 
 
 @router.post("/finalize/{doc_id}")
@@ -122,6 +124,8 @@ def finalize_signature(
         name_y=finalize_data.name_y if finalize_data else None,
         date_x=finalize_data.date_x if finalize_data else None,
         date_y=finalize_data.date_y if finalize_data else None,
+        canvas_width=finalize_data.canvas_width if finalize_data else 500,
+        canvas_height=finalize_data.canvas_height if finalize_data else 842,
     )
 
     # Upload signed PDF to Supabase

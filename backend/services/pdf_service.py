@@ -20,7 +20,9 @@ def embed_signature_on_pdf(
     name_y: float = None,
     date_x: float = None,
     date_y: float = None,
-) -> str:
+    canvas_width: float = 500,
+    canvas_height: float = 842,
+    ) -> str:
     # If input is a URL download it first
     if input_path.startswith("http"):
         response = requests.get(input_path)
@@ -46,9 +48,9 @@ def embed_signature_on_pdf(
     CANVAS_WIDTH = 500  # matches Page width={500} in sign page
     CANVAS_HEIGHT = 842
 
-    # Scale factors
-    scale_x = page_width / CANVAS_WIDTH
-    scale_y = page_height / CANVAS_HEIGHT
+     # Scale factors based on actual canvas vs PDF dimensions
+    scale_x = page_width / canvas_width
+    scale_y = page_height / canvas_height
 
     # Embed signature image if provided
     if signature_image_base64 and x is not None and y is not None:
