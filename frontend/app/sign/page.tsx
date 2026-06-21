@@ -130,8 +130,15 @@ function SignPageContent() {
     const rect = containerRef.current.getBoundingClientRect();
     const scaleX = PAGE_WIDTH / rect.width;
     const scaleY = PAGE_HEIGHT / rect.height;
-    const x = Math.min(Math.max(0, Math.round((e.clientX - rect.left) * scaleX)), PAGE_WIDTH);
-    const y = Math.min(Math.max(0, Math.round((e.clientY - rect.top) * scaleY)), PAGE_HEIGHT);
+    const x = Math.min(
+      PAGE_WIDTH - 120,
+      Math.max(120, Math.round((e.clientX - rect.left) * scaleX))
+    );
+
+    const y = Math.min(
+      PAGE_HEIGHT - 30,
+      Math.max(30, Math.round((e.clientY - rect.top) * scaleY))
+    );
     setItems(prev => prev.map(item =>
       item.id === draggingId ? { ...item, x, y } : item
     ));
