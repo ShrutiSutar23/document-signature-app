@@ -22,7 +22,7 @@ def embed_signature_on_pdf(
     date_y: float = None,
     canvas_width: float = 500,
     canvas_height: float = 842,
-    ) -> str:
+) -> str:
     # If input is a URL download it first
     if input_path.startswith("http"):
         response = requests.get(input_path)
@@ -31,9 +31,7 @@ def embed_signature_on_pdf(
             f.write(response.content)
         input_path = temp_path
 
-    # Open the PDF
     doc = fitz.open(input_path)
-
     page_index = page_number - 1
     if page_index >= len(doc):
         page_index = 0
@@ -44,90 +42,107 @@ def embed_signature_on_pdf(
 
     signed_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
-    # Canvas dimensions (frontend)
-    CANVAS_WIDTH = 500  # matches Page width={500} in sign page
-    CANVAS_HEIGHT = 842
-
-     # Canvas dimensions (frontend)
+    # Scale factors
     scale_x = page_width / canvas_width
     scale_y = page_height / canvas_height
 
-    # Embed signature image if provided
+    # Use signature position from canvas
+    # x, y are center positions from canvas
+    # Convert to PDF coordinates
     if signature_image_base64 and x is not None and y is not None:
         try:
             if ',' in signature_image_base64:
                 signature_image_base64 = signature_image_base64.split(',')[1]
             img_data = base64.b64decode(signature_image_base64)
-            scaled_x = min(max(0, x * scale_x), page_width - 120)
-            scaled_y = min(max(0, y * scale_y), page_height - 40)
-            img_rect = fitz.Rect(scaled_x, scaled_y, scaled_x + 120, scaled_y + 40)
-            page.insert_image(img_rect, stream=img_data)
+
+            # Block dimensions
+            block_width = 180
+            block_height = 90
+
+            # Scale position from canvas to PDF
+            scaled_x = (x * scale_x) - (block_width / 2)
+            scaled_y = (y * scale_y) - (block_height / 2)
+
+            # Keep within page bounds
+            scaled_x = min(max(0, scaled_x), page_width - block_width)
+            scaled_y = min(max(0, scaled_y), page_height - block_height)
+
+            # Draw outer border
+            outer_rect = fitz.Rect(
+                scaled_x,
+                scaled_y,
+                scaled_x + block_width,
+                scaled_y + block_height
+            )
+            page.draw_rect(outer_rect, color=(0, 0, 0), width=1.0)
+
+            # Signature image
+            sig_rect = fitz.Rect(
+                scaled_x + 5,
+                scaled_y + 5,
+                scaled_x + block_width - 5,
+                scaled_y + 50
+            )
+            page.insert_image(sig_rect, stream=img_data)
+
+            # Separator line
+            page.draw_line(
+                fitz.Point(scaled_x, scaled_y + 55),
+                fitz.Point(scaled_x + block_width, scaled_y + 55),
+                color=(0, 0, 0),
+                width=0.5
+            )
+
+            # Name
+            name_rect = fitz.Rect(
+                scaled_x + 5,
+                scaled_y + 57,
+                scaled_x + block_width - 5,
+                scaled_y + 72
+            )
+            page.insert_textbox(
+                name_rect,
+                f"Signed by: {signer_name}",
+                fontsize=8,
+                color=(0, 0, 0),
+                align=fitz.TEXT_ALIGN_CENTER
+            )
+
+            # Date
+            date_rect = fitz.Rect(
+                scaled_x + 5,
+                scaled_y + 73,
+                scaled_x + block_width - 5,
+                scaled_y + 88
+            )
+            page.insert_textbox(
+                date_rect,
+                f"Date: {signed_at}",
+                fontsize=8,
+                color=(0, 0, 0),
+                align=fitz.TEXT_ALIGN_CENTER
+            )
+
         except Exception as e:
-            print(f"Error embedding signature image: {e}")
+            print(f"Error embedding signature: {e}")
 
-    if name_x is not None and name_y is not None:
-        scaled_nx = min(max(0, name_x * scale_x), page_width - 150)
-        scaled_ny = min(max(0, name_y * scale_y), page_height - 20)
-        name_rect = fitz.Rect(scaled_nx, scaled_ny, scaled_nx + 150, scaled_ny + 20)
-        page.insert_textbox(
-            name_rect,
-            f"Signed by: {signer_name}",
-            fontsize=10,
-            color=(0, 0, 0),
-            align=fitz.TEXT_ALIGN_LEFT
-        )
+    else:
+        # No signature image - use signature item position or default
+        sig_x = x if x else page_width - 220
+        sig_y = y if y else page_height - 120
 
-    if date_x is not None and date_y is not None:
-        scaled_dx = min(max(0, date_x * scale_x), page_width - 150)
-        scaled_dy = min(max(0, date_y * scale_y), page_height - 20)
-        date_rect = fitz.Rect(scaled_dx, scaled_dy, scaled_dx + 150, scaled_dy + 20)
-        page.insert_textbox(
-            date_rect,
-            f"Date: {signed_at}",
-            fontsize=10,
-            color=(0, 0, 0),
-            align=fitz.TEXT_ALIGN_LEFT
-        )
+        scaled_x = (sig_x * scale_x) - 90
+        scaled_y = (sig_y * scale_y) - 45
 
-    # Embed signer name if position provided
-    if name_x is not None and name_y is not None:
-        scaled_nx = name_x * scale_x
-        scaled_ny = name_y * scale_y
-        name_rect = fitz.Rect(scaled_nx, scaled_ny, scaled_nx + 150, scaled_ny + 20)
-        page.insert_textbox(
-            name_rect,
-            f"Signed by: {signer_name}",
-            fontsize=10,
-            color=(0, 0, 0),
-            align=fitz.TEXT_ALIGN_LEFT
-        )
+        scaled_x = min(max(0, scaled_x), page_width - 180)
+        scaled_y = min(max(0, scaled_y), page_height - 90)
 
-    # Embed date if position provided
-    if date_x is not None and date_y is not None:
-        scaled_dx = date_x * scale_x
-        scaled_dy = date_y * scale_y
-        date_rect = fitz.Rect(scaled_dx, scaled_dy, scaled_dx + 150, scaled_dy + 20)
+        outer_rect = fitz.Rect(scaled_x, scaled_y, scaled_x + 180, scaled_y + 60)
+        page.draw_rect(outer_rect, color=(0, 0, 0), width=1.0)
         page.insert_textbox(
-            date_rect,
-            f"Date: {signed_at}",
-            fontsize=10,
-            color=(0, 0, 0),
-            align=fitz.TEXT_ALIGN_LEFT
-        )
-
-    # If no custom positions, add default signature box at bottom right
-    if signature_image_base64 is None and name_x is None:
-        margin = 20
-        box_width = 200
-        box_height = 50
-        right_x = page_width - box_width - margin
-        bottom_y = page_height - box_height - margin
-        rect = fitz.Rect(right_x, bottom_y, right_x + box_width, bottom_y + box_height)
-        page.draw_rect(rect, color=(0, 0, 0), width=1.5)
-        page.insert_textbox(
-            rect,
+            outer_rect,
             f"Signed by: {signer_name}\nDate: {signed_at}",
-            fontsize=10,
+            fontsize=9,
             color=(0, 0, 0),
             align=fitz.TEXT_ALIGN_CENTER
         )
@@ -148,7 +163,6 @@ def embed_signature_on_pdf(
 
     doc.close()
 
-    # Clean up temp file
     if 'temp_path' in locals() and os.path.exists(temp_path):
         os.remove(temp_path)
 
