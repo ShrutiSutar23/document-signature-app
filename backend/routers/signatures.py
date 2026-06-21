@@ -10,6 +10,8 @@ from models.user import User
 from services.pdf_service import embed_signature_on_pdf
 from services.audit_service import log_action
 from typing import List
+from pydantic import BaseModel
+from typing import Optional
 import os
 import uuid
 
@@ -66,10 +68,23 @@ def get_signatures(
     ).all()
     return signatures
 
+class FinalizeRequest(BaseModel):
+    signature_image: Optional[str] = None
+    signer_name: Optional[str] = None
+    signature_x: Optional[float] = None
+    signature_y: Optional[float] = None
+    name_x: Optional[float] = None
+    name_y: Optional[float] = None
+    date_x: Optional[float] = None
+    date_y: Optional[float] = None
+    password: Optional[str] = None
+
+
 @router.post("/finalize/{doc_id}")
 def finalize_signature(
     doc_id: int,
     request: Request,
+    finalize_data: FinalizeRequest = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     password: str = None
@@ -92,14 +107,21 @@ def finalize_signature(
 
     output_filename = f"signed_{uuid.uuid4()}_{document.original_name}"
 
+    actual_password = password or (finalize_data.password if finalize_data else None)
+
     signed_path = embed_signature_on_pdf(
         input_path=document.file_path,
         output_filename=output_filename,
-        signer_name=current_user.name,
+        signer_name=finalize_data.signer_name if finalize_data else current_user.name,
         x=signature.x,
         y=signature.y,
         page_number=signature.page,
-        password=password
+        password=actual_password,
+        signature_image_base64=finalize_data.signature_image if finalize_data else None,
+        name_x=finalize_data.name_x if finalize_data else None,
+        name_y=finalize_data.name_y if finalize_data else None,
+        date_x=finalize_data.date_x if finalize_data else None,
+        date_y=finalize_data.date_y if finalize_data else None,
     )
 
     # Upload signed PDF to Supabase

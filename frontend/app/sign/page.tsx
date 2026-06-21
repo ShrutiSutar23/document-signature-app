@@ -169,12 +169,25 @@ function SignPageContent() {
     }
 
     try {
-      const config: Record<string, any> = {};
-      if (usePassword && password) {
-        config.params = { password };
-      }
+      // Get positions of all visible items on PDF
+      const sigItem = items.find(i => i.id === 'signature' && i.onPdf);
+      const nameItem = items.find(i => i.id === 'name' && i.onPdf);
+      const dateItem = items.find(i => i.id === 'date' && i.onPdf);
 
-      const response = await api.post(`/api/signatures/finalize/${parseInt(docId)}`, null, config);
+      const payload = {
+        signature_image: signatureImage || null,
+        signer_name: signerName,
+        signature_x: sigItem?.x || null,
+        signature_y: sigItem?.y || null,
+        name_x: nameItem?.x || null,
+        name_y: nameItem?.y || null,
+        date_x: dateItem?.x || null,
+        date_y: dateItem?.y || null,
+        password: usePassword && password ? password : null,
+      };
+
+      const params = usePassword && password ? `?password=${password}` : '';
+      const response = await api.post(`/api/signatures/finalize/${parseInt(docId)}${params}`, payload);
 
       if (usePassword && password) {
         alert(`Document signed & password protected! 🔒\nPassword: ${password}`);
