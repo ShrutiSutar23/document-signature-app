@@ -125,9 +125,12 @@ function SignPageContent() {
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!draggingId || !containerRef.current) return;
+    e.preventDefault();
     const rect = containerRef.current.getBoundingClientRect();
-    const x = Math.min(Math.max(0, Math.round(e.clientX - rect.left)), PAGE_WIDTH);
-    const y = Math.min(Math.max(0, Math.round(e.clientY - rect.top)), PAGE_HEIGHT);
+    const scaleX = PAGE_WIDTH / rect.width;
+    const scaleY = PAGE_HEIGHT / rect.height;
+    const x = Math.min(Math.max(0, Math.round((e.clientX - rect.left) * scaleX)), PAGE_WIDTH);
+    const y = Math.min(Math.max(0, Math.round((e.clientY - rect.top) * scaleY)), PAGE_HEIGHT);
     setItems(prev => prev.map(item =>
       item.id === draggingId ? { ...item, x, y } : item
     ));
@@ -334,8 +337,9 @@ function SignPageContent() {
                   onMouseMove={handleMouseMove}
                   onMouseUp={handleMouseUp}
                   onMouseLeave={handleMouseUp}
+                  onDragStart={(e) => e.preventDefault()}
                   className="relative border-2 border-gray-300 rounded-lg overflow-hidden flex-1"
-                  style={{cursor: draggingId ? 'grabbing' : 'default'}}
+                  style={{cursor: draggingId ? 'grabbing' : 'default', userSelect: 'none'}}
                 >
                   {/* Actual PDF */}
                   {pdfLoaded && pdfFile ? (

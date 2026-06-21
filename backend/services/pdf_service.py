@@ -1,5 +1,6 @@
-import fitz  # PyMuPDF
+import fitz
 import os
+import requests
 from datetime import datetime
 
 SIGNED_DIR = "signed_uploads"
@@ -14,6 +15,14 @@ def embed_signature_on_pdf(
     page_number: int = 1,
     password: str = None
 ) -> str:
+    # If input is a URL download it first
+    if input_path.startswith("http"):
+        response = requests.get(input_path)
+        temp_path = os.path.join(SIGNED_DIR, f"temp_{output_filename}")
+        with open(temp_path, 'wb') as f:
+            f.write(response.content)
+        input_path = temp_path
+
     # Open the PDF
     doc = fitz.open(input_path)
 
@@ -70,5 +79,9 @@ def embed_signature_on_pdf(
         doc.save(output_path)
 
     doc.close()
+
+    # Clean up temp file
+    if 'temp_path' in locals() and os.path.exists(temp_path):
+        os.remove(temp_path)
 
     return output_path

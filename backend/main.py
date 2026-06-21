@@ -12,8 +12,10 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://document-signature-app.vercel.app",
         "https://frontend-liart-mu-16.vercel.app",
+        "https://document-signature-f7noi4w10-shrutisutar23s-projects.vercel.app",
+        "https://document-signature-8p7aa2ixv-shrutisutar23s-projects.vercel.app",
+        "https://document-signature-ez6bf10sm-shrutisutar23s-projects.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
