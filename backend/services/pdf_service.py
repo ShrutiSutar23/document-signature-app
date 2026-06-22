@@ -1,4 +1,3 @@
-
 import fitz
 import os
 import requests
@@ -33,146 +32,131 @@ def embed_signature_on_pdf(
     # Download PDF if URL
     if input_path.startswith("http"):
         response = requests.get(input_path)
-
-        temp_path = os.path.join(
-            SIGNED_DIR,
-            f"temp_{output_filename}"
-        )
-
+        temp_path = os.path.join(SIGNED_DIR, f"temp_{output_filename}")
         with open(temp_path, "wb") as f:
             f.write(response.content)
-
         input_path = temp_path
 
     doc = fitz.open(input_path)
-
     page_index = page_number - 1
-
     if page_index >= len(doc):
         page_index = 0
 
     page = doc[page_index]
-
     page_width = page.rect.width
     page_height = page.rect.height
-
     signed_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
     scale_x = page_width / canvas_width
     scale_y = page_height / canvas_height
 
     try:
+        # Signature image position
+        sig_pdf_x = None
+        sig_pdf_y = None
 
         # ====================================
         # SIGNATURE IMAGE
         # ====================================
         if signature_image_base64 and x is not None and y is not None:
-
             if "," in signature_image_base64:
                 signature_image_base64 = signature_image_base64.split(",")[1]
 
             img_data = base64.b64decode(signature_image_base64)
-
             signature_width = 160
             signature_height = 50
 
-            pdf_x = clamp(
+            sig_pdf_x = clamp(
                 (x * scale_x) - (signature_width / 2),
                 0,
                 page_width - signature_width
             )
-
-            pdf_y = clamp(
+            sig_pdf_y = clamp(
                 (y * scale_y) - (signature_height / 2),
                 0,
                 page_height - signature_height
             )
 
             signature_rect = fitz.Rect(
-                pdf_x,
-                pdf_y,
-                pdf_x + signature_width,
-                pdf_y + signature_height
+                sig_pdf_x,
+                sig_pdf_y,
+                sig_pdf_x + signature_width,
+                sig_pdf_y + signature_height
             )
-
-            page.insert_image(
-                signature_rect,
-                stream=img_data
-            )
+            page.insert_image(signature_rect, stream=img_data)
 
         # ====================================
         # NAME
         # ====================================
+        name_width = 220
+        name_height = 20
+
         if name_x is not None and name_y is not None:
-
-            name_width = 220
-            name_height = 20
-
+            # User placed name manually
             pdf_name_x = clamp(
                 (name_x * scale_x) - (name_width / 2),
                 0,
                 page_width - name_width
             )
-
             pdf_name_y = clamp(
                 (name_y * scale_y) - (name_height / 2),
                 0,
                 page_height - name_height
             )
+        elif sig_pdf_x is not None and sig_pdf_y is not None:
+            # Place name just below signature automatically
+            pdf_name_x = sig_pdf_x
+            pdf_name_y = clamp(sig_pdf_y + signature_height + 5, 0, page_height - name_height)
+        else:
+            # Default position bottom right
+            pdf_name_x = page_width - name_width - 20
+            pdf_name_y = page_height - 60
 
-            page.insert_textbox(
-                fitz.Rect(
-                    pdf_name_x,
-                    pdf_name_y,
-                    pdf_name_x + name_width,
-                    pdf_name_y + name_height
-                ),
-                signer_name,
-                fontsize=12,
-                color=(0, 0, 0),
-                align=fitz.TEXT_ALIGN_CENTER
-            )
+        page.insert_text(
+            fitz.Point(pdf_name_x, pdf_name_y + name_height),
+            f"Signed by: {signer_name}",
+            fontsize=10,
+            color=(0, 0, 0)
+        )
 
         # ====================================
         # DATE
         # ====================================
+        date_width = 240
+        date_height = 20
+
         if date_x is not None and date_y is not None:
-
-            date_width = 240
-            date_height = 20
-
+            # User placed date manually
             pdf_date_x = clamp(
                 (date_x * scale_x) - (date_width / 2),
                 0,
                 page_width - date_width
             )
-
             pdf_date_y = clamp(
                 (date_y * scale_y) - (date_height / 2),
                 0,
                 page_height - date_height
             )
+        elif sig_pdf_x is not None and sig_pdf_y is not None:
+            # Place date below name automatically
+            pdf_date_x = sig_pdf_x
+            pdf_date_y = clamp(sig_pdf_y + signature_height + 25, 0, page_height - date_height)
+        else:
+            # Default position bottom right
+            pdf_date_x = page_width - date_width - 20
+            pdf_date_y = page_height - 40
 
-            page.insert_textbox(
-                fitz.Rect(
-                    pdf_date_x,
-                    pdf_date_y,
-                    pdf_date_x + date_width,
-                    pdf_date_y + date_height
-                ),
-                signed_at,
-                fontsize=10,
-                color=(0, 0, 0),
-                align=fitz.TEXT_ALIGN_CENTER
-            )
+        page.insert_text(
+            fitz.Point(pdf_date_x, pdf_date_y + date_height),
+            f"Date: {signed_at}",
+            fontsize=10,
+            color=(0, 0, 0)
+        )
 
     except Exception as e:
         print(f"Error embedding signature: {e}")
 
-    output_path = os.path.join(
-        SIGNED_DIR,
-        output_filename
-    )
+    output_path = os.path.join(SIGNED_DIR, output_filename)
 
     if password:
         doc.save(
@@ -191,4 +175,3 @@ def embed_signature_on_pdf(
         os.remove(temp_path)
 
     return output_path
-
